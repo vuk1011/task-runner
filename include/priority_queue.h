@@ -32,6 +32,7 @@ void pqueue_destroy(pqueue_t *q);
 bool    pqueue_push(pqueue_t *q, task_t *t);
 task_t *pqueue_pop(pqueue_t *q);          /* NULL when empty */
 task_t *pqueue_peek(const pqueue_t *q);   /* NULL when empty */
+task_t *pqueue_find_by_id(const pqueue_t *q, uint64_t id);
 size_t  pqueue_size(const pqueue_t *q);
 bool    pqueue_is_empty(const pqueue_t *q);
 

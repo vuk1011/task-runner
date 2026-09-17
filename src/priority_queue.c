@@ -134,6 +134,18 @@ task_t *pqueue_peek(const pqueue_t *q) {
     return q->heap[0];
 }
 
+task_t *pqueue_find_by_id(const pqueue_t *q, const uint64_t id) {
+    if (q == NULL) {
+        return NULL;
+    }
+    for (size_t i = 0; i < q->size; i++) {
+        if (q->heap[i]->id == id) {
+            return q->heap[i];
+        }
+    }
+    return NULL;
+}
+
 size_t pqueue_size(const pqueue_t *q) {
     return q == NULL ? 0 : q->size;
 }
