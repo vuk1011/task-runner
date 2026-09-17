@@ -72,13 +72,13 @@ pqueue_t *pqueue_create(const size_t initial_capacity) {
 
     pqueue_t *q = malloc(sizeof *q);
     if (q == NULL) {
-        return NULL;
+        return nullptr;
     }
 
     q->heap = malloc(capacity * sizeof *q->heap);
     if (q->heap == NULL) {
         free(q);
-        return NULL;
+        return nullptr;
     }
 
     q->size = 0;
@@ -117,7 +117,7 @@ bool pqueue_push(pqueue_t *q, task_t *t) {
 
 task_t *pqueue_pop(pqueue_t *q) {
     if (q == NULL || q->size == 0) {
-        return NULL;
+        return nullptr;
     }
 
     task_t *top = q->heap[0];
@@ -129,21 +129,21 @@ task_t *pqueue_pop(pqueue_t *q) {
 
 task_t *pqueue_peek(const pqueue_t *q) {
     if (q == NULL || q->size == 0) {
-        return NULL;
+        return nullptr;
     }
     return q->heap[0];
 }
 
 task_t *pqueue_find_by_id(const pqueue_t *q, const uint64_t id) {
     if (q == NULL) {
-        return NULL;
+        return nullptr;
     }
     for (size_t i = 0; i < q->size; i++) {
         if (q->heap[i]->id == id) {
             return q->heap[i];
         }
     }
-    return NULL;
+    return nullptr;
 }
 
 size_t pqueue_size(const pqueue_t *q) {

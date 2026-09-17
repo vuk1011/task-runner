@@ -1,7 +1,6 @@
 #include <pthread.h>
 #include <stdarg.h>
 #include <stdatomic.h>
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,12 +9,9 @@
 #include "pool.h"
 #include "task.h"
 
-#ifndef N_WORKERS
 #define N_WORKERS 4
-#endif
 #define N_PRIORITY_TASKS 20
 
-/* printf is not atomic across threads; this keeps demo output readable. */
 static pthread_mutex_t g_log_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static void log_printf(const char *fmt, ...) {
@@ -33,7 +29,7 @@ static void sleep_ms(const unsigned ms) {
         .tv_sec = ms / 1000,
         .tv_nsec = (long) (ms % 1000) * 1000000L,
     };
-    nanosleep(&ts, NULL);
+    nanosleep(&ts, nullptr);
 }
 
 static pthread_mutex_t g_gate_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -91,7 +87,7 @@ static bool submit_priority_job(pool_t *pool, const int n, const task_priority_t
     job->priority = priority;
     job->work_ms = 60 + (unsigned) (rand() % 120);
 
-    return pool_submit(pool, priority_job_run, job, free, priority, NULL);
+    return pool_submit(pool, priority_job_run, job, free, priority, nullptr);
 }
 
 static int demo_priority(void) {
@@ -108,7 +104,7 @@ static int demo_priority(void) {
     log_printf("pool started with %d workers\n\n", N_WORKERS);
 
     for (int i = 0; i < N_WORKERS; i++) {
-        if (!pool_submit(pool, gate_task, NULL, NULL, TASK_PRIORITY_CRITICAL, NULL)) {
+        if (!pool_submit(pool, gate_task, NULL, nullptr, TASK_PRIORITY_CRITICAL, nullptr)) {
             fprintf(stderr, "failed to submit gate task\n");
             open_gate();
             pool_destroy(pool);
@@ -120,11 +116,11 @@ static int demo_priority(void) {
         task_priority_t priority;
         int count;
     } batches[] = {
-        {TASK_PRIORITY_LOW, 8},
-        {TASK_PRIORITY_NORMAL, 6},
-        {TASK_PRIORITY_HIGH, 4},
-        {TASK_PRIORITY_CRITICAL, 2},
-    };
+                {TASK_PRIORITY_LOW, 8},
+                {TASK_PRIORITY_NORMAL, 6},
+                {TASK_PRIORITY_HIGH, 4},
+                {TASK_PRIORITY_CRITICAL, 2},
+            };
 
     int submitted = 0;
     for (size_t b = 0; b < sizeof batches / sizeof *batches; b++) {
@@ -193,7 +189,7 @@ static int run_single_flaky_demo(const char *title, const char *name,
     job->fail_until = fail_until;
 
     if (!pool_submit_retry(pool, flaky_job_run, job, free, TASK_PRIORITY_NORMAL,
-                           max_attempts, 300, NULL)) {
+                           max_attempts, 300, nullptr)) {
         fprintf(stderr, "failed to submit retry task\n");
         pool_destroy(pool);
         return 1;
@@ -248,7 +244,7 @@ static int demo_heavy(void) {
         job->n = i;
         job->rounds = 20000000U;
 
-        if (!pool_submit(pool, heavy_job_run, job, free, TASK_PRIORITY_HIGH, NULL)) {
+        if (!pool_submit(pool, heavy_job_run, job, free, TASK_PRIORITY_HIGH, nullptr)) {
             fprintf(stderr, "failed to submit heavy job\n");
             pool_destroy(pool);
             return 1;
@@ -277,14 +273,14 @@ static int demo_cancel(void) {
         return 1;
     }
 
-    if (!pool_submit(pool, gate_task, NULL, NULL, TASK_PRIORITY_CRITICAL, NULL)) {
+    if (!pool_submit(pool, gate_task, NULL, nullptr, TASK_PRIORITY_CRITICAL, nullptr)) {
         fprintf(stderr, "failed to submit gate task\n");
         pool_destroy(pool);
         return 1;
     }
 
     uint64_t task_id = 0;
-    if (!pool_submit_retry(pool, should_not_run, NULL, NULL, TASK_PRIORITY_LOW,
+    if (!pool_submit_retry(pool, should_not_run, NULL, nullptr, TASK_PRIORITY_LOW,
                            3, 200, &task_id)) {
         fprintf(stderr, "failed to submit cancellable task\n");
         open_gate();

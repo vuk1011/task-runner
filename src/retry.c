@@ -12,7 +12,7 @@ static void sleep_ms(const unsigned ms) {
         .tv_sec = ms / 1000,
         .tv_nsec = (long) (ms % 1000) * 1000000L,
     };
-    nanosleep(&ts, NULL);
+    nanosleep(&ts, nullptr);
 }
 
 static bool sleep_backoff_or_cancelled(const task_t *t) {

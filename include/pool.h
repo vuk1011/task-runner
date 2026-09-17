@@ -5,7 +5,6 @@
 #ifndef POOL_H
 #define POOL_H
 
-#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -16,8 +15,7 @@
  * priority order. Submission is safe from any thread.
  *
  * pool_shutdown() and pool_destroy() are expected to be called by a single
- * owning thread (typically whoever created the pool), because they join the
- * workers.
+ * owning thread , because they join the workers.
  */
 typedef struct pool pool_t;
 
@@ -31,7 +29,7 @@ pool_t *pool_create(size_t n_threads);
  * *out_id when out_id is non-NULL.
  */
 bool pool_submit(pool_t *p, task_fn_t fn, void *arg, void (*arg_free)(void *arg),
-                  task_priority_t priority, uint64_t *out_id);
+                 task_priority_t priority, uint64_t *out_id);
 
 bool pool_submit_retry(pool_t *p, task_fn_t fn, void *arg, void (*arg_free)(void *arg),
                        task_priority_t priority, unsigned max_attempts,
@@ -52,7 +50,7 @@ void pool_shutdown(pool_t *p, bool drain);
 /* Shuts down with drain == true if needed, then releases all resources. */
 void pool_destroy(pool_t *p);
 
-size_t pool_pending(pool_t *p);   /* tasks queued, not yet started */
+size_t pool_pending(pool_t *p); /* tasks queued, not yet started */
 size_t pool_completed(pool_t *p); /* tasks that have finished running */
 
 #endif //POOL_H

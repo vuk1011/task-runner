@@ -11,20 +11,21 @@
 #include "retry.h"
 
 struct pool {
-    pthread_mutex_t lock;       /* guards everything below */
-    pthread_cond_t  work_ready; /* workers block here when the queue is empty */
-    pthread_cond_t  all_idle;   /* reserved for a future pool_wait_idle() */
+    pthread_mutex_t lock;
+    pthread_cond_t work_ready; /* workers block here when the queue is empty */
+    pthread_cond_t all_idle; /* reserved for a future pool_wait_idle() */
 
     pthread_t *threads;
-    size_t     n_threads;
+    size_t n_threads;
 
     pqueue_t *queue;
-    uint64_t  next_seq;
+    uint64_t next_seq;
 
-    bool   shutting_down;
-    bool   drain_on_shutdown;
-    size_t active;    /* tasks currently executing */
-    size_t completed; /* tasks that have finished executing */
+    bool shutting_down;
+    bool drain_on_shutdown;
+
+    size_t active;
+    size_t completed;
 };
 
 /* Caller must hold p->lock. Drops and frees everything still queued. */
@@ -82,64 +83,64 @@ static void *worker_main(void *arg) {
 
 pool_t *pool_create(const size_t n_threads) {
     if (n_threads == 0) {
-        return NULL;
+        return nullptr;
     }
 
     pool_t *p = calloc(1, sizeof *p);
     if (p == NULL) {
-        return NULL;
+        return nullptr;
     }
 
     p->queue = pqueue_create(0);
     if (p->queue == NULL) {
         free(p);
-        return NULL;
+        return nullptr;
     }
 
     p->threads = calloc(n_threads, sizeof *p->threads);
     if (p->threads == NULL) {
         pqueue_destroy(p->queue);
         free(p);
-        return NULL;
+        return nullptr;
     }
 
-    if (pthread_mutex_init(&p->lock, NULL) != 0) {
+    if (pthread_mutex_init(&p->lock, nullptr) != 0) {
         free(p->threads);
         pqueue_destroy(p->queue);
         free(p);
-        return NULL;
+        return nullptr;
     }
-    if (pthread_cond_init(&p->work_ready, NULL) != 0) {
+    if (pthread_cond_init(&p->work_ready, nullptr) != 0) {
         pthread_mutex_destroy(&p->lock);
         free(p->threads);
         pqueue_destroy(p->queue);
         free(p);
-        return NULL;
+        return nullptr;
     }
-    if (pthread_cond_init(&p->all_idle, NULL) != 0) {
+    if (pthread_cond_init(&p->all_idle, nullptr) != 0) {
         pthread_cond_destroy(&p->work_ready);
         pthread_mutex_destroy(&p->lock);
         free(p->threads);
         pqueue_destroy(p->queue);
         free(p);
-        return NULL;
+        return nullptr;
     }
 
-    p->n_threads         = 0;
-    p->next_seq          = 0;
-    p->shutting_down     = false;
+    p->n_threads = 0;
+    p->next_seq = 0;
+    p->shutting_down = false;
     p->drain_on_shutdown = true;
-    p->active            = 0;
-    p->completed         = 0;
+    p->active = 0;
+    p->completed = 0;
 
     /*
      * n_threads grows as threads actually start, so a partial failure below
      * only ever joins threads that exist.
      */
     for (size_t i = 0; i < n_threads; i++) {
-        if (pthread_create(&p->threads[i], NULL, worker_main, p) != 0) {
+        if (pthread_create(&p->threads[i], nullptr, worker_main, p) != 0) {
             pool_destroy(p);
-            return NULL;
+            return nullptr;
         }
         p->n_threads++;
     }
@@ -232,7 +233,7 @@ void pool_shutdown(pool_t *p, const bool drain) {
         pthread_mutex_unlock(&p->lock);
         return;
     }
-    p->shutting_down     = true;
+    p->shutting_down = true;
     p->drain_on_shutdown = drain;
     if (!drain) {
         discard_queued_locked(p);
@@ -247,7 +248,7 @@ void pool_shutdown(pool_t *p, const bool drain) {
 
     /* Joining with the lock held would deadlock: the workers need it to exit. */
     for (size_t i = 0; i < p->n_threads; i++) {
-        pthread_join(p->threads[i], NULL);
+        pthread_join(p->threads[i], nullptr);
     }
 }
 
