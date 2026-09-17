@@ -19,14 +19,12 @@
  */
 typedef struct pool pool_t;
 
-/* n_threads must be >= 1. NULL on failure. */
 pool_t *pool_create(size_t n_threads);
 
 /*
  * Queues fn(arg) at the given priority. Returns false if the pool is
  * shutting down or allocation failed, in which case arg_free(arg) is
- * called and nothing is queued. On success the task id is stored in
- * *out_id when out_id is non-NULL.
+ * called and nothing is queued. On success the task id is stored in *out_id.
  */
 bool pool_submit(pool_t *p, task_fn_t fn, void *arg, void (*arg_free)(void *arg),
                  task_priority_t priority, uint64_t *out_id);
@@ -43,7 +41,6 @@ bool pool_cancel(pool_t *p, uint64_t task_id);
  *   drain == true  -> queued tasks all run first
  *   drain == false -> queued tasks are dropped (marked cancelled and freed);
  *                     tasks already running still finish
- * Calling it a second time is a no-op.
  */
 void pool_shutdown(pool_t *p, bool drain);
 

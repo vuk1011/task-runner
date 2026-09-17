@@ -19,14 +19,12 @@ typedef enum {
     TASK_STATUS_QUEUED,
     TASK_STATUS_RUNNING,
     TASK_STATUS_SUCCEEDED,
-    TASK_STATUS_FAILED, /* used by increment 2 (retry) */
-    TASK_STATUS_CANCELLED /* used by increment 2 (cancellation) */
+    TASK_STATUS_FAILED,
+    TASK_STATUS_CANCELLED
 } task_status_t;
 
 /*
- * A unit of work. Must return 0 on success and non-zero on failure: that
- * return value is what the retry logic will key off in increment 2, which
- * is why this is not a void-returning function.
+ * A unit of work. Must return 0 on success and non-zero on failure.
  */
 typedef int (*task_fn_t)(void *arg);
 
@@ -41,9 +39,9 @@ typedef struct task {
     uint64_t seq; /* insertion order, assigned by the pool; FIFO tiebreaker */
     task_status_t status;
 
-    unsigned attempts; /* completed attempts so far */
-    unsigned max_attempts; /* 1 == no retry */
-    unsigned backoff_ms; /* base delay between attempts */
+    unsigned attempts;
+    unsigned max_attempts;
+    unsigned backoff_ms;
     atomic_bool cancelled; /* set from any thread, polled by the worker */
     int last_result; /* return value of the most recent attempt */
 } task_t;

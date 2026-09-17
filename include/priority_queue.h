@@ -11,9 +11,9 @@
 
 /*
  * A binary max-heap of task_t*, ordered by priority and then by insertion
- * sequence so that equal-priority tasks come out first-in-first-out.
+ * sequence so that equal-priority tasks come out FIFO.
  *
- * Deliberately NOT thread-safe: the owner (the pool) holds its own mutex
+ * NOT thread-safe: the owner (the pool) holds its own mutex
  * across every call, because "pop a task, or wait until one arrives or we
  * shut down" has to be one atomic decision under a single lock.
  *
@@ -21,18 +21,15 @@
  */
 typedef struct pqueue pqueue_t;
 
-/* initial_capacity of 0 selects a sensible default. NULL on failure. */
 pqueue_t *pqueue_create(size_t initial_capacity);
 
-/* Frees the queue itself. Does NOT free any tasks still in it. */
 void pqueue_destroy(pqueue_t *q);
 
-/* False only if the backing array could not grow. */
 bool pqueue_push(pqueue_t *q, task_t *t);
 
-task_t *pqueue_pop(pqueue_t *q); /* NULL when empty */
+task_t *pqueue_pop(pqueue_t *q);
 
-task_t *pqueue_peek(const pqueue_t *q); /* NULL when empty */
+task_t *pqueue_peek(const pqueue_t *q);
 
 task_t *pqueue_find_by_id(const pqueue_t *q, uint64_t id);
 

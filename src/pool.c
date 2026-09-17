@@ -2,18 +2,17 @@
 // Created by vukpe on 13-Sep-26.
 //
 
-#include "pool.h"
-
 #include <pthread.h>
 #include <stdlib.h>
 
+#include "pool.h"
 #include "priority_queue.h"
 #include "retry.h"
 
 struct pool {
     pthread_mutex_t lock;
     pthread_cond_t work_ready; /* workers block here when the queue is empty */
-    pthread_cond_t all_idle; /* reserved for a future pool_wait_idle() */
+    pthread_cond_t all_idle;
 
     pthread_t *threads;
     size_t n_threads;
@@ -43,19 +42,10 @@ static void *worker_main(void *arg) {
     for (;;) {
         pthread_mutex_lock(&p->lock);
 
-        /*
-         * This must be a while, not an if. pthread_cond_wait can wake
-         * spuriously, and even after a genuine signal another worker may
-         * have taken the task before this thread reacquired the lock.
-         */
         while (!p->shutting_down && pqueue_is_empty(p->queue)) {
             pthread_cond_wait(&p->work_ready, &p->lock);
         }
 
-        /*
-         * Two ways out: we are dropping pending work, or we are draining
-         * and there is nothing left to drain.
-         */
         if (p->shutting_down &&
             (!p->drain_on_shutdown || pqueue_is_empty(p->queue))) {
             pthread_mutex_unlock(&p->lock);
@@ -67,7 +57,6 @@ static void *worker_main(void *arg) {
         p->active++;
         pthread_mutex_unlock(&p->lock);
 
-        /* Run outside the lock, or the pool would be serial rather than parallel. */
         retry_run(t);
         task_destroy(t);
 
@@ -133,10 +122,6 @@ pool_t *pool_create(const size_t n_threads) {
     p->active = 0;
     p->completed = 0;
 
-    /*
-     * n_threads grows as threads actually start, so a partial failure below
-     * only ever joins threads that exist.
-     */
     for (size_t i = 0; i < n_threads; i++) {
         if (pthread_create(&p->threads[i], nullptr, worker_main, p) != 0) {
             pool_destroy(p);
@@ -168,17 +153,10 @@ bool pool_submit_retry(pool_t *p, const task_fn_t fn, void *arg,
     }
     retry_configure(t, max_attempts, backoff_ms);
 
-    /*
-     * Read the id now. Once the task is queued and the lock is released a
-     * worker may have already run and freed it, so touching t after that
-     * would be a use-after-free.
-     */
     const uint64_t id = t->id;
 
     pthread_mutex_lock(&p->lock);
 
-    /* Checked under the lock: unlocked, this would race with a concurrent
-     * shutdown and strand the task in a queue nobody will ever drain. */
     if (p->shutting_down) {
         pthread_mutex_unlock(&p->lock);
         task_destroy(t);
@@ -192,7 +170,6 @@ bool pool_submit_retry(pool_t *p, const task_fn_t fn, void *arg,
         return false;
     }
 
-    /* One task added, so waking one worker is enough. */
     pthread_cond_signal(&p->work_ready);
     pthread_mutex_unlock(&p->lock);
 
@@ -238,15 +215,10 @@ void pool_shutdown(pool_t *p, const bool drain) {
     if (!drain) {
         discard_queued_locked(p);
     }
-    /*
-     * Broadcast, not signal: every blocked worker has to see the flag. A
-     * signal would wake one and leave the rest asleep forever, and the join
-     * below would hang.
-     */
+
     pthread_cond_broadcast(&p->work_ready);
     pthread_mutex_unlock(&p->lock);
 
-    /* Joining with the lock held would deadlock: the workers need it to exit. */
     for (size_t i = 0; i < p->n_threads; i++) {
         pthread_join(p->threads[i], nullptr);
     }
@@ -257,11 +229,6 @@ void pool_destroy(pool_t *p) {
         return;
     }
 
-    /*
-     * Either this joins the workers, or an earlier pool_shutdown already
-     * did. Both cases leave no worker running by the time we free anything,
-     * which is why the API asks for a single owning thread here.
-     */
     pool_shutdown(p, true);
 
     pthread_mutex_lock(&p->lock);

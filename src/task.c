@@ -6,7 +6,7 @@
 
 #include <stdlib.h>
 
-/* Ids are handed out without any lock, so task_create stays cheap. */
+/* Ids are handed out without any lock. */
 static _Atomic uint64_t g_next_task_id = 1;
 
 task_t *task_create(const task_fn_t fn, void *arg, void (*arg_free)(void *arg),
@@ -25,7 +25,7 @@ task_t *task_create(const task_fn_t fn, void *arg, void (*arg_free)(void *arg),
     t->arg = arg;
     t->arg_free = arg_free;
     t->priority = priority;
-    t->seq = 0; /* the pool assigns this under its lock */
+    t->seq = 0;
     t->status = TASK_STATUS_QUEUED;
 
     t->attempts = 0;

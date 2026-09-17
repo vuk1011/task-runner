@@ -2,10 +2,10 @@
 // Created by vukpe on 13-Sep-26.
 //
 
-#include "retry.h"
-
 #include <stdatomic.h>
 #include <time.h>
+
+#include "retry.h"
 
 static void sleep_ms(const unsigned ms) {
     const struct timespec ts = {

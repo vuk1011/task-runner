@@ -2,9 +2,9 @@
 // Created by vukpe on 13-Sep-26.
 //
 
-#include "priority_queue.h"
-
 #include <stdlib.h>
+
+#include "priority_queue.h"
 
 #define PQUEUE_DEFAULT_CAPACITY 16
 
@@ -16,11 +16,6 @@ struct pqueue {
 
 /*
  * True when a must run before b.
- *
- * The seq tiebreaker is what makes the queue fair: a bare heap gives no
- * ordering at all among equal keys, so without this two tasks of the same
- * priority would come out in whatever order the heap happened to shuffle
- * them into.
  */
 static bool task_precedes(const task_t *a, const task_t *b) {
     if (a->priority != b->priority) {
@@ -103,7 +98,7 @@ bool pqueue_push(pqueue_t *q, task_t *t) {
         const size_t capacity = q->capacity * 2;
         task_t **heap = realloc(q->heap, capacity * sizeof *heap);
         if (heap == NULL) {
-            return false; /* the old array is still intact */
+            return false;
         }
         q->heap = heap;
         q->capacity = capacity;
