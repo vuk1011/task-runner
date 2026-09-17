@@ -8,6 +8,7 @@
 #include <stdlib.h>
 
 #include "priority_queue.h"
+#include "retry.h"
 
 struct pool {
     pthread_mutex_t lock;       /* guards everything below */
@@ -66,10 +67,7 @@ static void *worker_main(void *arg) {
         pthread_mutex_unlock(&p->lock);
 
         /* Run outside the lock, or the pool would be serial rather than parallel. */
-        t->attempts++;
-        t->last_result = t->fn(t->arg);
-        t->status = t->last_result == 0 ? TASK_STATUS_SUCCEEDED : TASK_STATUS_FAILED;
-        /* Increment 2 wraps the call above in the retry loop from retry.c. */
+        retry_run(t);
         task_destroy(t);
 
         pthread_mutex_lock(&p->lock);
@@ -149,9 +147,10 @@ pool_t *pool_create(const size_t n_threads) {
     return p;
 }
 
-bool pool_submit(pool_t *p, const task_fn_t fn, void *arg,
-                 void (*arg_free)(void *arg), const task_priority_t priority,
-                 uint64_t *out_id) {
+bool pool_submit_retry(pool_t *p, const task_fn_t fn, void *arg,
+                       void (*arg_free)(void *arg), const task_priority_t priority,
+                       const unsigned max_attempts, const unsigned backoff_ms,
+                       uint64_t *out_id) {
     if (p == NULL || fn == NULL) {
         if (arg_free != NULL) {
             arg_free(arg);
@@ -166,6 +165,7 @@ bool pool_submit(pool_t *p, const task_fn_t fn, void *arg,
         }
         return false;
     }
+    retry_configure(t, max_attempts, backoff_ms);
 
     /*
      * Read the id now. Once the task is queued and the lock is released a
@@ -199,6 +199,27 @@ bool pool_submit(pool_t *p, const task_fn_t fn, void *arg,
         *out_id = id;
     }
     return true;
+}
+
+bool pool_submit(pool_t *p, const task_fn_t fn, void *arg,
+                 void (*arg_free)(void *arg), const task_priority_t priority,
+                 uint64_t *out_id) {
+    return pool_submit_retry(p, fn, arg, arg_free, priority, 1, 0, out_id);
+}
+
+bool pool_cancel(pool_t *p, const uint64_t task_id) {
+    if (p == NULL) {
+        return false;
+    }
+
+    pthread_mutex_lock(&p->lock);
+    task_t *t = pqueue_find_by_id(p->queue, task_id);
+    if (t != NULL) {
+        retry_cancel(t);
+    }
+    pthread_mutex_unlock(&p->lock);
+
+    return t != NULL;
 }
 
 void pool_shutdown(pool_t *p, const bool drain) {

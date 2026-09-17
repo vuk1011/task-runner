@@ -8,15 +8,16 @@ Supports priority, retries and cancellation.
 
 ## Status
 
-**Increment 1 — done:** task type, priority queue, worker thread pool.
+**Done:** task type, priority queue, worker thread pool, bounded retry with
+backoff, and queued-task cancellation.
 
 Tasks are executed by a fixed pool of worker threads in priority order
 (`CRITICAL > HIGH > NORMAL > LOW`), first-in-first-out within a single
 priority level. Shutdown can either drain the queue or drop what is left.
 
-**Increment 2 — planned:** retry with backoff, and cancellation.
-`src/retry.c` is still an empty stub; `task_t` already carries the
-`attempts` / `max_attempts` / `backoff_ms` / `cancelled` fields these will use.
+Retry is limited by `max_attempts`, so failed jobs are never repeated forever.
+`backoff_ms` adds a pause between attempts. A queued task can be cancelled by id
+before a worker starts it.
 
 ## Architecture
 
@@ -25,8 +26,8 @@ priority level. Shutdown can either drain the queue or drop what is left.
 | `include/task.h`, `src/task.c` | The `task_t` unit of work: id, priority, status, lifecycle |
 | `include/priority_queue.h`, `src/priority_queue.c` | Binary max-heap of tasks. Not thread-safe by design — the pool locks around it |
 | `include/pool.h`, `src/pool.c` | Worker threads, submission, condition-variable wait, shutdown |
-| `include/retry.h`, `src/retry.c` | Stub, increment 2 |
-| `main.c` | Demo: 4 workers, 20 jobs, proves priority ordering |
+| `include/retry.h`, `src/retry.c` | Retry loop, backoff, cancellation flag |
+| `main.c` | Console demos selected by command-line argument |
 
 Concurrency uses POSIX threads: one mutex guards the queue and all counters,
 one condition variable parks idle workers. Tasks run outside the lock.
@@ -53,16 +54,37 @@ cmake -S . -B cmake-build-verify -G Ninja `
   -DCMAKE_C_COMPILER="$clion/mingw/bin/gcc.exe" `
   -DCMAKE_MAKE_PROGRAM="$clion/ninja/win/x64/ninja.exe"
 cmake --build cmake-build-verify
-./cmake-build-verify/task_runner.exe
+./cmake-build-verify/task_runner.exe all
 ```
 
 On Linux, or with a compiler already on `PATH`:
 
 ```sh
-cmake -S . -B build && cmake --build build && ./build/task_runner
+cmake -S . -B build && cmake --build build && ./build/task_runner all
 ```
 
-### Expected output
+### Demo commands
+
+```sh
+./build/task_runner priority
+./build/task_runner retry-success
+./build/task_runner retry-fail
+./build/task_runner heavy
+./build/task_runner cancel
+./build/task_runner all
+```
+
+The demos are intentionally small:
+
+| Demo | What it shows |
+| --- | --- |
+| `priority` | Low-priority jobs are submitted first, but critical/high jobs run first |
+| `retry-success` | A task fails twice, then succeeds on a later attempt |
+| `retry-fail` | A task keeps failing and stops after 3 attempts |
+| `heavy` | Several CPU-heavy jobs running in the worker pool |
+| `cancel` | A queued task is marked cancelled and its function is never called |
+
+### Priority demo output
 
 Jobs are submitted lowest-priority-first, so the fact that they *run*
 highest-priority-first is the queue at work rather than submission order:

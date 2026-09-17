@@ -31,7 +31,14 @@ pool_t *pool_create(size_t n_threads);
  * *out_id when out_id is non-NULL.
  */
 bool pool_submit(pool_t *p, task_fn_t fn, void *arg, void (*arg_free)(void *arg),
-                 task_priority_t priority, uint64_t *out_id);
+                  task_priority_t priority, uint64_t *out_id);
+
+bool pool_submit_retry(pool_t *p, task_fn_t fn, void *arg, void (*arg_free)(void *arg),
+                       task_priority_t priority, unsigned max_attempts,
+                       unsigned backoff_ms, uint64_t *out_id);
+
+/* Cancels a task that is still queued. Returns false if it already started. */
+bool pool_cancel(pool_t *p, uint64_t task_id);
 
 /*
  * Stops accepting work and blocks until every worker has exited.

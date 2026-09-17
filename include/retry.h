@@ -5,4 +5,15 @@
 #ifndef RETRY_H
 #define RETRY_H
 
+#include "task.h"
+
+/* Configures bounded retry. max_attempts == 1 means: run once, no retry. */
+void retry_configure(task_t *t, unsigned max_attempts, unsigned backoff_ms);
+
+/* Runs the task until it succeeds, exhausts attempts, or gets cancelled. */
+void retry_run(task_t *t);
+
+/* May be called from another thread. The task function should still be short. */
+void retry_cancel(task_t *t);
+
 #endif //RETRY_H
